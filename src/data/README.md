@@ -13,3 +13,7 @@
 |--|--|
 |crawl_fonts.ipynb|Google Fonts에서 폰트 다운로드|
 |save_font_img.ipynb|다운로드한 폰트를 사용하여 알파벳 이미지 만들기|
+
+
+### TODO
+- 이미지 파일을 압축하여 저장할 예정
