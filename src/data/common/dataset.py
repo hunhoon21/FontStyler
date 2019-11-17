@@ -5,52 +5,53 @@ import pickle as pickle
 import numpy as np
 import random
 import os
+
+import io
+import torch
+from PIL import Image
+
 from .utils import pad_seq, bytes_to_file, \
 	read_split_image, shift_and_resize_image, normalize_image
 
+# def get_batch_iter(examples, batch_size, augment):
+# 	# the transpose ops requires deterministic
+# 	# batch size, thus comes the padding
+# 	padded = pad_seq(examples, batch_size)
 
+# 	def process(img):
+# 		img = bytes_to_file(img)
+# 		try:
+# 			img_A, img_B = read_split_image(img)
+# 			if augment:
+# 				# augment the image by:
+# 				# 1) enlarge the image
+# 				# 2) random crop the image back to its original size
+# 				# NOTE: image A and B needs to be in sync as how much
+# 				# to be shifted
+# 				w, h, _ = img_A.shape
+# 				multiplier = random.uniform(1.00, 1.20)
+# 				# add an eps to prevent cropping issue
+# 				nw = int(multiplier * w) + 1
+# 				nh = int(multiplier * h) + 1
+# 				shift_x = int(np.ceil(np.random.uniform(0.01, nw - w)))
+# 				shift_y = int(np.ceil(np.random.uniform(0.01, nh - h)))
+# 				img_A = shift_and_resize_image(img_A, shift_x, shift_y, nw, nh)
+# 				img_B = shift_and_resize_image(img_B, shift_x, shift_y, nw, nh)
+# 			img_A = normalize_image(img_A)
+# 			img_B = normalize_image(img_B)
+# 			return np.concatenate([img_A, img_B], axis=2)
+# 		finally:
+# 			img.close()
 
+# 	def batch_iter():
+# 		for i in range(0, len(padded), batch_size):
+# 			batch = padded[i: i + batch_size]
+# 			labels = [e[0] for e in batch]
+# 			processed = [process(e[1]) for e in batch]
+# 			# stack into tensor
+# 			yield labels, np.array(processed).astype(np.float32)
 
-
-def get_batch_iter(examples, batch_size, augment):
-	# the transpose ops requires deterministic
-	# batch size, thus comes the padding
-	padded = pad_seq(examples, batch_size)
-
-	def process(img):
-		img = bytes_to_file(img)
-		try:
-			img_A, img_B = read_split_image(img)
-			if augment:
-				# augment the image by:
-				# 1) enlarge the image
-				# 2) random crop the image back to its original size
-				# NOTE: image A and B needs to be in sync as how much
-				# to be shifted
-				w, h, _ = img_A.shape
-				multiplier = random.uniform(1.00, 1.20)
-				# add an eps to prevent cropping issue
-				nw = int(multiplier * w) + 1
-				nh = int(multiplier * h) + 1
-				shift_x = int(np.ceil(np.random.uniform(0.01, nw - w)))
-				shift_y = int(np.ceil(np.random.uniform(0.01, nh - h)))
-				img_A = shift_and_resize_image(img_A, shift_x, shift_y, nw, nh)
-				img_B = shift_and_resize_image(img_B, shift_x, shift_y, nw, nh)
-			img_A = normalize_image(img_A)
-			img_B = normalize_image(img_B)
-			return np.concatenate([img_A, img_B], axis=2)
-		finally:
-			img.close()
-
-	def batch_iter():
-		for i in range(0, len(padded), batch_size):
-			batch = padded[i: i + batch_size]
-			labels = [e[0] for e in batch]
-			processed = [process(e[1]) for e in batch]
-			# stack into tensor
-			yield labels, np.array(processed).astype(np.float32)
-
-	return batch_iter()
+# 	return batch_iter()
 
 class PickledImageProvider(object):
 	def __init__(self, obj_path):
@@ -79,6 +80,30 @@ class PickledImageProvider(object):
 			
 			print("saved total %d examples only for byte"%len(only_byte_examples))
 			return only_byte_examples
+		
+class FontDataset(torch.utils.data.Dataset):
+    def __init__(self, pickled):
+        self.path = pickled.obj_path
+        self.dset = pickled.examples
+    
+    def __getitem__(self, idx):
+        img_tuple = self.dset[idx]
+        filename, img_byte = img_tuple[0], img_tuple[1]
+        
+        filename = filename[:-4]       # 확장자 제거
+        filename = filename.split('_') # [카테고리, 폰트번호, 알파벳]
+        
+        # 파생변수 생성
+        info = {
+            'category': int(filename[0]),
+            'font': int(filename[1]),
+            'alphabet': np.array([int(i == int(filename[2])) for i in range(52)])
+        }
+        
+        return info, Image.open(io.BytesIO(img_byte))
+        
+    def __len__(self):
+        return len(self.dset)
 
 # class TrainDataProvider(object):
 # 	"""
