@@ -8,6 +8,7 @@ import os
 
 import io
 import torch
+from torchvision.utils import save_image
 from PIL import Image
 
 from .utils import pad_seq, bytes_to_file, \
