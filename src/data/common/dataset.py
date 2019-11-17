@@ -71,51 +71,63 @@ class PickledImageProvider(object):
 				except Exception:
 					pass
 			print("unpickled total %d examples" % len(examples))
-			return examples
+			
+			# byte 파일만 반환하도록
+			only_byte_examples = []
+			for i in range(3, len(examples)-1, 5):
+				only_byte_examples.append(examples[i])
+			
+			print("saved total %d examples only for byte"%len(only_byte_examples))
+			return only_byte_examples
 
-class TrainDataProvider(object):
-	"""
-		train_name = 'train_{카테고리}.obj'
-		val_name   = 'val_{카테고리}.obj'
-	"""
-	def __init__(self, data_dir, train_name, val_name=None, filter_by=None):
-		self.data_dir = data_dir
-		self.filter_by = filter_by
-		self.train_path = os.path.join(self.data_dir, train_name)
-		self.val_path = os.path.join(self.data_dir, val_name)
-		self.train = PickledImageProvider(self.train_path)
-		self.val = PickledImageProvider(self.val_path)
-		if self.filter_by:
-			print("filter by label ->", filter_by)
-			self.train.examples = filter(lambda e: e[0] in self.filter_by, self.train.examples)
-			self.val.examples = filter(lambda e: e[0] in self.filter_by, self.val.examples)
-		print("train examples -> %d, val examples -> %d" % (len(self.train.examples), len(self.val.examples)))
+# class TrainDataProvider(object):
+# 	"""
+# 		train_name = 'train_{카테고리}.obj'
+# 		val_name   = 'val_{카테고리}.obj'
+# 	"""
+# 	def __init__(self, data_dir, train_name, val_name=None, filter_by=None):
+# 		self.data_dir = data_dir
+# 		self.filter_by = filter_by
+# 		self.train_path = os.path.join(self.data_dir, train_name)
+# 		self.train = PickledImageProvider(self.train_path)
+# 		if val_name:
+# 			self.val_path = os.path.join(self.data_dir, val_name)
+# 			self.val = PickledImageProvider(self.val_path)
+# 		if self.filter_by:
+# 			print("filter by label ->", filter_by)
+# 			self.train.examples = filter(lambda e: e[0] in self.filter_by, self.train.examples)
+# 			if val_name:
+# 				self.val.examples = filter(lambda e: e[0] in self.filter_by, self.val.examples)
+		
+# 		print("train examples -> %d" % (len(self.train.examples)))
+# 		if val_name:
+# 			print("val examples -> %d" % (len(self.val.examples)))
 
-	def get_train_iter(self, batch_size, shuffle=True):
-		training_examples = self.train.examples[:]
-		if shuffle:
-			np.random.shuffle(training_examples)
-		return get_batch_iter(training_examples, batch_size, augment=True)
+# 	def get_train_iter(self, batch_size, shuffle=True):
+# 		training_examples = self.train.examples[:]
+# 		if shuffle:
+# 			np.random.shuffle(training_examples)
+# 		return get_batch_iter(training_examples, batch_size, augment=True)
 
-	def get_val_iter(self, batch_size, shuffle=True):
-		"""
-		Validation iterator runs forever
-		"""
-		val_examples = self.val.examples[:]
-		if shuffle:
-			np.random.shuffle(val_examples)
-		while True:
-			val_batch_iter = get_batch_iter(val_examples, batch_size, augment=False)
-			for labels, examples in val_batch_iter:
-				yield labels, examples
+# 	def get_val_iter(self, batch_size, shuffle=True):
+# 		"""
+# 		Validation iterator runs forever
+# 		"""
+# 		val_examples = self.val.examples[:]
+# 		if shuffle:
+# 			np.random.shuffle(val_examples)
+# 		while True:
+# 			val_batch_iter = get_batch_iter(val_examples, batch_size, augment=False)
+# 			for labels, examples in val_batch_iter:
+# 				yield labels, examples
 
-	def compute_total_batch_num(self, batch_size):
-		"""Total padded batch num"""
-		return int(np.ceil(len(self.train.examples) / float(batch_size)))
+# 	def compute_total_batch_num(self, batch_size):
+# 		"""Total padded batch num"""
+# 		return int(np.ceil(len(self.train.examples) / float(batch_size)))
 
-	def get_all_labels(self):
-		"""Get all training labels"""
-		return list({e[0] for e in self.train.examples})
+# 	def get_all_labels(self):
+# 		"""Get all training labels"""
+# 		return list({e[0] for e in self.train.examples})
 
-	def get_train_val_path(self):
-		return self.train_path, self.val_path
+# 	def get_train_val_path(self):
+# 		return self.train_path, self.val_path
