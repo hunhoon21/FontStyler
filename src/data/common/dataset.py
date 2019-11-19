@@ -101,7 +101,11 @@ class FontDataset(torch.utils.data.Dataset):
             'alphabet': np.array([int(i == int(filename[2])) for i in range(52)])
         }
         
-        return info, Image.open(io.BytesIO(img_byte))
+		# bytes 타입을 numpy array로 변경
+# 		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
+# 		img_arr = normalize_image(img_arr)
+		
+        return info, img_byte
         
     def __len__(self):
         return len(self.dset)
