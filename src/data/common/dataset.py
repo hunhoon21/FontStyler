@@ -12,7 +12,8 @@ from torchvision.utils import save_image
 from PIL import Image
 
 from .utils import pad_seq, bytes_to_file, \
-	read_split_image, shift_and_resize_image, normalize_image
+	read_split_image, shift_and_resize_image, normalize_image, \
+	tight_crop_image, add_padding
 
 # def get_batch_iter(examples, batch_size, augment):
 # 	# the transpose ops requires deterministic
@@ -73,42 +74,45 @@ class PickledImageProvider(object):
 				except Exception:
 					pass
 			print("unpickled total %d examples" % len(examples))
-			
+
 			# byte 파일만 반환하도록
 			only_byte_examples = []
 			for i in range(3, len(examples)-1, 5):
 				only_byte_examples.append(examples[i])
-			
+
 			print("saved total %d examples only for byte"%len(only_byte_examples))
 			return only_byte_examples
-		
+
 class FontDataset(torch.utils.data.Dataset):
-    def __init__(self, pickled):
-        self.path = pickled.obj_path
-        self.dset = pickled.examples
-    
-    def __getitem__(self, idx):
-        img_tuple = self.dset[idx]
-        filename, img_byte = img_tuple[0], img_tuple[1]
-        
-        filename = filename[:-4]       # 확장자 제거
-        filename = filename.split('_') # [카테고리, 폰트번호, 알파벳]
-        
-        # 파생변수 생성
-        info = {
-            'category': int(filename[0]),
-            'font': int(filename[1]),
-            'alphabet': np.array([int(i == int(filename[2])) for i in range(52)])
-        }
-        
-		# bytes 타입을 numpy array로 변경
-# 		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
-# 		img_arr = normalize_image(img_arr)
-		
-        return info, img_byte
-        
-    def __len__(self):
-        return len(self.dset)
+	def __init__(self, pickled):
+		self.path = pickled.obj_path
+		self.dset = pickled.examples
+
+	def __getitem__(self, idx):
+		img_tuple = self.dset[idx]
+		filename, img_byte = img_tuple[0], img_tuple[1]
+
+		filename = filename[:-4]       # 확장자 제거
+		filename = filename.split('_') # [카테고리, 폰트번호, 알파벳]
+
+		# 파생변수 생성
+		info = {
+			'category': int(filename[0]),
+			'font': int(filename[1]),
+			'alphabet': np.array([int(i == int(filename[2])) for i in range(52)])
+		}
+
+		# bytes 타입을 numpy array로 변경 후 normalize
+		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
+		img_arr = normalize_image(img_arr)
+
+		cropped_image, cropped_image_size = tight_crop_image(img_arr, verbose=False)
+		centered_image = add_padding(cropped_image, verbose=False)
+
+		return info, centered_image
+
+	def __len__(self):
+		return len(self.dset)
 
 # class TrainDataProvider(object):
 # 	"""
@@ -128,7 +132,7 @@ class FontDataset(torch.utils.data.Dataset):
 # 			self.train.examples = filter(lambda e: e[0] in self.filter_by, self.train.examples)
 # 			if val_name:
 # 				self.val.examples = filter(lambda e: e[0] in self.filter_by, self.val.examples)
-		
+
 # 		print("train examples -> %d" % (len(self.train.examples)))
 # 		if val_name:
 # 			print("val examples -> %d" % (len(self.val.examples)))
