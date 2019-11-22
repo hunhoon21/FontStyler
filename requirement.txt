@@ -2,7 +2,10 @@
 -e .
 
 # external requirements
+numpy
 torch
+torchvision
 tqdm
 imageio
+pillow
 scipy
