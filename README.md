@@ -8,7 +8,7 @@ find . -name .DS_Store -print0 | xargs -0 git rm --ignore-unmatch
 ```
 to remove all .DS_Stores from the repository.
 
-Requirements.txt
+Requirements
 ```
-pip3 install -r requirements.txt
+pip3 install -r requirement.txt
 ```
