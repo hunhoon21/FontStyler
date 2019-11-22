@@ -1,0 +1,8 @@
+# local package
+-e .
+
+# external requirements
+torch
+tqdm
+imageio
+scipy
