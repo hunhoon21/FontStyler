@@ -31,7 +31,7 @@ class Encoder_base(nn.Module):
         x = F.relu(self.efc3(x))
         x = F.relu(self.efc4(x))
         x = F.relu(self.efc5(x))
-        z = self.efc(6)
+        z = self.efc6(x)
         return z
     
 class Decoder_base(nn.Module):

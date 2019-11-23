@@ -22,6 +22,7 @@ class AE_base(nn.Module):
                                     output_font_size=font_size)
     
     def forward(self, x_font, alpha_vector, category_vector=None):
+        origin_shape = x_font.shape
         x_font = x_font.view(x_font.shape[0], -1)
         alpha_vector = alpha_vector.view(alpha_vector.shape[0], -1)
         if category_vector is not None:
@@ -30,7 +31,7 @@ class AE_base(nn.Module):
         if category_vector is not None:
             x = torch.cat([x_font, category_vector, alpha_vector], dim=1)
         else:
-            x = torch.cat([x_font, alpha_vector])
+            x = torch.cat([x_font, alpha_vector], dim=1)
         
         z_latent = self.Encoder(x)
         
@@ -41,5 +42,6 @@ class AE_base(nn.Module):
             z = torch.cat([z_latent, alpha_vector], dim=1)
         
         x_hat = self.Decoder(z)
+        x_hat = x_hat.view(origin_shape)
         
         return x_hat, z_latent
