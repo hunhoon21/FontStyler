@@ -113,7 +113,7 @@ class FontDataset(torch.utils.data.Dataset):
 		length = {
 			'category_vector': len(info['category_vector']),
 			'alphabet_vector': len(info['alphabet_vector']),
-			'font_vector': len(centered_image)
+			'font_vector': len(centered_image)*len(centered_image[0]) # 128x128
 		}
 
 		return info, centered_image, length
