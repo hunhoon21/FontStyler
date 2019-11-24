@@ -97,9 +97,9 @@ class FontDataset(torch.utils.data.Dataset):
 
 		# 파생변수 생성
 		info = {
-			'category': int(filename[0]),
+			'category_vector': np.array([int(i == int(filename[0])) for i in range(5)]),
 			'font': int(filename[1]),
-			'alphabet': np.array([int(i == int(filename[2])) for i in range(52)])
+			'alphabet_vector': np.array([int(i == int(filename[2])) for i in range(52)])
 		}
 
 		# bytes 타입을 numpy array로 변경 후 normalize
@@ -108,8 +108,15 @@ class FontDataset(torch.utils.data.Dataset):
 
 		cropped_image, cropped_image_size = tight_crop_image(img_arr, verbose=False)
 		centered_image = add_padding(cropped_image, verbose=False)
+		
+		# 길이를 반환하는 dictionary 추가
+		length = {
+			'category_vector': len(info['category_vector']),
+			'alphabet_vector': len(info['alphabet_vector']),
+			'font_vector': len(centered_image)*len(centered_image[0]) # 128x128
+		}
 
-		return info, centered_image
+		return info, centered_image, length
 
 	def __len__(self):
 		return len(self.dset)
