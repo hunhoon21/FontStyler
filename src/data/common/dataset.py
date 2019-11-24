@@ -165,3 +165,30 @@ class FontDataset(torch.utils.data.Dataset):
 
 # 	def get_train_val_path(self):
 # 		return self.train_path, self.val_path
+
+
+class KoreanFontDataset(torch.utils.data.Dataset):
+	"""
+		한글 폰트 테스트용입니다.
+	"""
+	def __init__(self, pickled):
+		self.path = pickled.obj_path
+		self.dset = pickled.examples
+
+	def __getitem__(self, idx):
+		img_tuple = self.dset[idx]
+		filename, img_byte = img_tuple[0], img_tuple[1]
+
+		filename = filename[:-4] # 확장자 제거
+
+		# bytes 타입을 numpy array로 변경 후 normalize
+		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
+		img_arr = normalize_image(img_arr)
+
+		cropped_image, cropped_image_size = tight_crop_image(img_arr, verbose=False)
+		centered_image = add_padding(cropped_image, verbose=False)
+
+		return filename, centered_image
+
+	def __len__(self):
+		return len(self.dset)
