@@ -120,6 +120,19 @@ class FontDataset(torch.utils.data.Dataset):
 
 	def __len__(self):
 		return len(self.dset)
+	
+	
+class NewFontDataset(torch.utils.data.Dataset):
+	def __init__(self, pickled):
+		self.path = pickled.obj_path
+		self.dset = pickled.examples
+
+	def __getitem__(self, idx):
+		info = self.dset[idx]
+		return info
+
+	def __len__(self):
+		return len(self.dset)
 
 # class TrainDataProvider(object):
 # 	"""
