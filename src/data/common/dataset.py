@@ -97,9 +97,9 @@ class FontDataset(torch.utils.data.Dataset):
 
 		# 파생변수 생성
 		info = {
-			'category': int(filename[0]),
+			'category_vector': np.array([int(i == int(filename[0])) for i in range(5)]),
 			'font': int(filename[1]),
-			'alphabet': np.array([int(i == int(filename[2])) for i in range(52)])
+			'alphabet_vector': np.array([int(i == int(filename[2])) for i in range(52)])
 		}
 
 		# bytes 타입을 numpy array로 변경 후 normalize
@@ -108,8 +108,28 @@ class FontDataset(torch.utils.data.Dataset):
 
 		cropped_image, cropped_image_size = tight_crop_image(img_arr, verbose=False)
 		centered_image = add_padding(cropped_image, verbose=False)
+		
+		# 길이를 반환하는 dictionary 추가
+		length = {
+			'category_vector': len(info['category_vector']),
+			'alphabet_vector': len(info['alphabet_vector']),
+			'font_vector': len(centered_image)*len(centered_image[0]) # 128x128
+		}
 
-		return info, centered_image
+		return info, centered_image, length
+
+	def __len__(self):
+		return len(self.dset)
+	
+	
+class NewFontDataset(torch.utils.data.Dataset):
+	def __init__(self, pickled):
+		self.path = pickled.obj_path
+		self.dset = pickled.examples
+
+	def __getitem__(self, idx):
+		info = self.dset[idx]
+		return info
 
 	def __len__(self):
 		return len(self.dset)
@@ -165,3 +185,30 @@ class FontDataset(torch.utils.data.Dataset):
 
 # 	def get_train_val_path(self):
 # 		return self.train_path, self.val_path
+
+
+class KoreanFontDataset(torch.utils.data.Dataset):
+	"""
+		한글 폰트 테스트용입니다.
+	"""
+	def __init__(self, pickled):
+		self.path = pickled.obj_path
+		self.dset = pickled.examples
+
+	def __getitem__(self, idx):
+		img_tuple = self.dset[idx]
+		filename, img_byte = img_tuple[0], img_tuple[1]
+
+		filename = filename[:-4] # 확장자 제거
+
+		# bytes 타입을 numpy array로 변경 후 normalize
+		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
+		img_arr = normalize_image(img_arr)
+
+		cropped_image, cropped_image_size = tight_crop_image(img_arr, verbose=False)
+		centered_image = add_padding(cropped_image, verbose=False)
+
+		return filename, centered_image
+
+	def __len__(self):
+		return len(self.dset)
