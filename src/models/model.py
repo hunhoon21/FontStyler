@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from .layers import Encoder_base, Decoder_base
-
+from .layers import Encoder_category, Decoder_category
 
 class AE_base(nn.Module):
     def __init__(self, 
@@ -41,6 +41,31 @@ class AE_base(nn.Module):
         else:
             z = torch.cat([z_latent, alpha_vector], dim=1)
         
+        x_hat = self.Decoder(z)
+        x_hat = x_hat.view(origin_shape)
+        
+        return x_hat, z_latent
+    
+    
+class AE_category(nn.Module):
+    def __init__(self, 
+                 font_size=128*128,
+                 z_size=64,
+                 ):
+        super(AE_category, self).__init__()
+        self.Encoder = Encoder_category(input_font_size=font_size,
+                                        z_size=z_size)
+        self.Decoder = Decoder_category(z_latent_size=z_size,
+                                        output_font_size=font_size)
+    
+    def forward(self, x_font):
+        origin_shape = x_font.shape
+        x = x_font.view(x_font.shape[0], -1)
+        
+        z_latent = self.Encoder(x)
+        
+        z = z_latent.view(z_latent.shape[0], -1)
+
         x_hat = self.Decoder(z)
         x_hat = x_hat.view(origin_shape)
         
