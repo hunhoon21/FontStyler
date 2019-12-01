@@ -27,12 +27,12 @@ if __name__ == '__main__':
     shuffle_dataset = True
     random_seed = 42
     
-    lr = 0.0001
+    lr = 0.00003
     
     log_interval = 10
     epochs = 200
     
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
     
     
     '''
@@ -75,10 +75,10 @@ if __name__ == '__main__':
     '''
     Modeling
     '''
-    model = AE_base(category_size=0, 
-                    alpha_size=52, 
+    model = AE_base(category_size=0,
+                    alpha_size=52,
                     font_size=128*128, 
-                    z_size=64)
+                    z_size=2)
     
     '''
     Optimizer
@@ -179,7 +179,7 @@ if __name__ == '__main__':
         plt.plot(list(range(1, train_epoch+1)), train_history, label='train_history')
         plt.plot(list(range(1, valid_epoch+1)), valid_history, label='valid_history')
         plt.legend()
-        plt.savefig('history.png')
+        plt.savefig('history_epoch_{}.png'.format(train_epoch))
         plt.close()
         
     @trainer.on(Events.COMPLETED)
@@ -192,7 +192,7 @@ if __name__ == '__main__':
             plt.imshow(real.cpu().detach().numpy())
             plt.subplot(43, 22, 2*i+2)
             plt.imshow(fake.cpu().detach().numpy())
-        plt.savefig('real_fake_fonts')
+        plt.savefig('real_fake_fonts_{}'.format(engine.state.epoch))
         plt.close()
         
         
