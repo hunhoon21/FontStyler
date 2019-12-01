@@ -186,11 +186,11 @@ if __name__ == '__main__':
     def plot_font_results(engine):
         evaluator.run(test_loader)
         real_font, fake_font = evaluator.state.output
-        plt.figure(figsize=(50, 100))
+        plt.figure(figsize=(50, 200))
         for i, (real, fake) in enumerate(zip(real_font, fake_font)):
-            plt.subplot(43, 22, 2*i+1)
+            plt.subplot(131, 24, 2*i+1)
             plt.imshow(real.cpu().detach().numpy())
-            plt.subplot(43, 22, 2*i+2)
+            plt.subplot(131, 24, 2*i+2)
             plt.imshow(fake.cpu().detach().numpy())
         plt.savefig('real_fake_fonts_{}'.format(engine.state.epoch))
         plt.close()
