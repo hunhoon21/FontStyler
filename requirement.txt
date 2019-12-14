@@ -7,6 +7,6 @@ torch
 torchvision
 tqdm
 imageio
+matplotlib
 pillow
 scipy
- 
