@@ -3,8 +3,10 @@ from __future__ import print_function
 from __future__ import absolute_import
 import pickle as pickle
 import numpy as np
+import pandas as pd
 import random
 import os
+import glob
 
 import io
 import torch
@@ -217,20 +219,57 @@ class LatentInfo(torch.utils.data.Dataset):
 		return len(self.dset)
 
 
+def get_doc2vec():
+	vec_10 = pd.read_csv('./dataset/kor/doc2vec_10.csv')
+	vec_20 = pd.read_csv('./dataset/kor/doc2vec_20.csv')
+	
+	# 불필요한 col 제거
+	del vec_10['Unnamed: 0']
+	del vec_20['Unnamed: 0']
+	
+	# 폰트 2개 제거 (동화또박, 하나손글씨)
+	fonts_ = []
+	for font in glob.glob('collection/fonts_kor/*.ttf'):
+		fonts_.append(font[21:])
+	fonts_ = sorted(fonts_)
+	
+	vec_10 = vec_10.drop(vec_10.index[25])
+	vec_10 = vec_10.drop(vec_10.index[98])
+	vec_10 = vec_10.reset_index(drop=True)
+	vec_20 = vec_20.drop(vec_20.index[25])
+	vec_20 = vec_20.drop(vec_20.index[98])
+	vec_20 = vec_20.reset_index(drop=True)
+	
+	return vec_10, vec_20
+
+	
 class KoreanFontDataset(torch.utils.data.Dataset):
 	"""
-		한글 폰트 테스트용입니다.
+		한글 폰트 클래스. Doc2vec의 vector_size를 명시해주세요(10, 20).
 	"""
-	def __init__(self, pickled):
+	def __init__(self, pickled, vector_size=10):
 		self.path = pickled.obj_path
 		self.dset = pickled.examples
+		
+		doc2vec = get_doc2vec()
+		self.vec = doc2vec[0] if vector_size == 10 else doc2vec[1]
+		
 
 	def __getitem__(self, idx):
 		img_tuple = self.dset[idx]
 		filename, img_byte = img_tuple[0], img_tuple[1]
 
-		filename = filename[:-4] # 확장자 제거
-
+		filename = filename[:-4]       # 확장자 제거
+		filename = filename.split('_') # [폰트 인덱스, 글자 인덱스]
+		
+		# 파생변수 생성
+		font_idx = int(filename[0])
+		info = {
+			'font_index'  : font_idx,
+			'font_doc2vec': self.vec.loc[self.vec.index[font_idx]].tolist(),
+			'word_index'  : int(filename[1])
+		}
+		
 		# bytes 타입을 numpy array로 변경 후 normalize
 		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
 		img_arr = normalize_image(img_arr)
@@ -238,7 +277,7 @@ class KoreanFontDataset(torch.utils.data.Dataset):
 		cropped_image, cropped_image_size = tight_crop_image(img_arr, verbose=False)
 		centered_image = add_padding(cropped_image, verbose=False)
 
-		return filename, centered_image
+		return info, centered_image
 
 	def __len__(self):
 		return len(self.dset)
