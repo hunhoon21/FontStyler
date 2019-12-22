@@ -202,8 +202,8 @@ class LatentInfo(torch.utils.data.Dataset):
 
 		# 파생변수 생성
 		info = {
-			'font_index' : filename[0],
-			'word_index' : filename[1] 
+			'font_index' : int(filename[0]),
+			'word_index' : int(filename[1]) 
 		}
 
 		# bytes 타입을 numpy array로 변경 후 normalize
