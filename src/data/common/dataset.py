@@ -281,3 +281,48 @@ class KoreanFontDataset(torch.utils.data.Dataset):
 
 	def __len__(self):
 		return len(self.dset)
+	
+class CategoryDataset(torch.utils.data.Dataset):
+	def __init__(self, pickled):
+		self.path = pickled.obj_path
+		self.dset = pickled.examples
+
+	def __getitem__(self, idx):
+		# 8개 글자를 불러온다.
+		imgs = list()
+		for i in range(0+idx, len(self.dset), 107): # 8
+			imgs.append(self.dset[i])
+		
+		imgs_byte = [img[1] for img in imgs]
+		imgs_arr = [ np.array(Image.open(io.BytesIO(img_byte))) for img_byte in imgs_byte ]
+		imgs_arr = [ normalize_image(img_arr) for img_arr in imgs_arr ]
+		
+		cropped_images = [ tight_crop_image(img_arr, verbose=False)[0] for img_arr in imgs_arr ]
+		centered_images = [ add_padding(cropped_image, verbose=False) for cropped_image in cropped_images ]
+		
+		return np.array(centered_images)
+# 		img_tuple = self.dset[idx]
+# 		filename, img_byte = img_tuple[0], img_tuple[1]
+
+# 		filename = filename[:-4]       # 확장자 제거
+# 		filename = filename.split('_') # [폰트 인덱스, 글자 인덱스]
+		
+# 		# 파생변수 생성
+# 		font_idx = int(filename[0])
+# 		info = {
+# 			'font_index'  : font_idx,
+# 			'font_doc2vec': self.vec.loc[self.vec.index[font_idx]].tolist(),
+# 			'word_index'  : int(filename[1])
+# 		}
+		
+		# bytes 타입을 numpy array로 변경 후 normalize
+# 		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
+# 		img_arr = normalize_image(img_arr)
+
+# 		cropped_image, cropped_image_size = tight_crop_image(img_arr, verbose=False)
+# 		centered_image = add_padding(cropped_image, verbose=False)
+
+# 		return info, centered_image
+
+	def __len__(self):
+		return int(len(self.dset)/8)
