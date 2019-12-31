@@ -266,7 +266,7 @@ class KoreanFontDataset(torch.utils.data.Dataset):
 		font_idx = int(filename[0])
 		info = {
 			'font_index'  : font_idx,
-			'font_doc2vec': self.vec.loc[self.vec.index[font_idx]].tolist(),
+			'font_doc2vec': np.array(self.vec.loc[self.vec.index[font_idx]]),
 			'word_index'  : int(filename[1])
 		}
 		
