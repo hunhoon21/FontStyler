@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from .function import conv2d, deconv2d, batch_norm, lrelu, dropout
 
 '''
 TODO : 
@@ -62,6 +63,107 @@ class Decoder_base(nn.Module):
         x_hat = self.dfc7(z)
         return x_hat
 
+class Encoder_conv(nn.Module):
+    
+    def __init__(self, img_dim=1, conv_dim=64):
+        super(Encoder_conv, self).__init__()
+        self.conv1 = conv2d(img_dim, conv_dim, k_size=5, stride=2, pad=2, dilation=2, lrelu=False, bn=False)
+        self.conv2 = conv2d(conv_dim, conv_dim*2, k_size=5, stride=4, pad=2, dilation=2)
+        self.conv3 = conv2d(conv_dim*2, conv_dim*4, k_size=4, stride=4, pad=1, dilation=1)
+        self.conv4 = conv2d(conv_dim*4, conv_dim*8)
+        self.conv5 = conv2d(conv_dim*8, conv_dim*8)
+    
+    def forward(self, images):
+        # |images| = (batch, img, img)
+        # print(images.shape)
+        images = images.unsqueeze(dim=1)
+        # |images| = (batch, 1, 128, 128)
+        # print(images.shape)
+        e1 = self.conv1(images)
+        # |e1| = (batch, conv_dim, 64, 64)
+        # print(e1.shape)
+        e2 = self.conv2(e1)
+        # |e2| = (batch, conv_dim*2, 16, 16)
+        # print(e2.shape)
+        e3 = self.conv3(e2)
+        # |e3| = (batch, conv_dim*4, 4, 4)
+        # print(e3.shape)
+        e4 = self.conv4(e3)
+        # |e4| = (batch, conv_dim*8, 2, 2)
+        # print(e4.shape)
+        encoded_source = self.conv5(e4)
+        # |encoded_source| = (batch, conv_dim*8, 1, 1)
+        # print(encoded_source.shape)
+        
+        return encoded_source
+
+class FC_conv_en(nn.Module):
+    def __init__(self, z_dim):
+        super(FC_conv_en, self).__init__()
+        self.fc1 = nn.Linear(z_dim, 64)
+        self.fc2 = nn.Linear(64, 16)
+        self.fc3 = nn.Linear(16, 2)
+    def forward(self, z):
+        # |z| = (batch, conv_dim*8, 1, 1)
+        z = F.relu(z.squeeze(dim=3).squeeze(dim=2))
+        # |z| = (batch, conv_dim*8)
+        z = F.relu(self.fc1(z))
+        # |z| = (batch, 32)
+        z = F.relu(self.fc2(z))
+        # |z| = (batch, 2)
+        z = self.fc3(z)
+        return z
+        
+class FC_conv_de(nn.Module):
+    def __init__(self, z_dim):
+        super(FC_conv_de, self).__init__()
+        self.fc1 = nn.Linear(2, 16)
+        self.fc2 = nn.Linear(16, 64)
+        self.fc3 = nn.Linear(64, z_dim)
+    def forward(self, z):
+        # |z| = (batch, 2)
+        z = F.relu(self.fc1(z))
+        # |z| = (batch, 32)
+        z = F.relu(self.fc2(z))
+        z = self.fc3(z)
+        # |z| = (batch, conv_dim*8)
+        z = z.unsqueeze(dim=2).unsqueeze(dim=3)
+        return z
+    
+class Decoder_conv(nn.Module):
+    
+    def __init__(self, img_dim=1, embedded_dim=640, conv_dim=64):
+        super(Decoder_conv, self).__init__()
+        self.deconv1 = deconv2d(conv_dim*8, conv_dim*8, k_size=4, dilation=2, stride=2)
+        self.deconv2 = deconv2d(conv_dim*8, conv_dim*4, k_size=4, dilation=2, stride=2)
+        self.deconv3 = deconv2d(conv_dim*4, conv_dim*2, k_size=6, dilation=2, stride=4)
+        self.deconv4 = deconv2d(conv_dim*2, conv_dim*1, k_size=6, dilation=2, stride=4)
+        self.deconv5 = deconv2d(conv_dim*1, img_dim, k_size=4, dilation=2, stride=2, bn=False)
+    
+    def forward(self, embedded):
+        # |embedded| = (batch, conv_dim*8, 1, 1)
+        d1 = self.deconv1(embedded)
+        # |d1| = (batch, conv_dim*8, 2, 2)
+        # print( 1.shape)
+        d2 = self.deconv2(d1)
+        # |d2| = (batch, conv_dim*4, 4, 4)
+        # print(d2.s hape)
+        d3 = self.deconv3(d2)
+        # |d3| = (batch, conv_dim*2, 16, 16)
+        # print(d3. shape)
+        d4 = self.deconv4(d3)
+        # |d4| = (batch, conv_dim*1, 64, 64)
+        # print(d4 .shape)
+        d5 = self.deconv5(d4)        
+        # |d5| = (batch, 1, 128, 128)
+        # print(d5. shape)
+        fake_target = d5
+        # |fake_target| = (batch_size, 1, img, img)
+        fake_target = fake_target.squeeze(dim=1)
+        # |fake_target| = (batch_size, img, img)
+        
+        return fake_target
+    
 
 class Encoder_category(nn.Module):
     def __init__(self, 
@@ -104,3 +206,161 @@ class Decoder_category(nn.Module):
         z = F.relu(self.dfc4(z))
         x_hat = self.dfc5(z)
         return x_hat
+    
+    
+class Encoder_category(nn.Module):
+    
+    def __init__(self, img_dim=8, conv_dim=64):
+        super(Encoder_category, self).__init__()
+        self.conv1 = conv2d(img_dim, conv_dim, k_size=5, stride=2, pad=2, dilation=2, lrelu=False, bn=False)
+        self.conv2 = conv2d(conv_dim, conv_dim*2, k_size=5, stride=4, pad=2, dilation=2)
+        self.conv3 = conv2d(conv_dim*2, conv_dim*4, k_size=4, stride=4, pad=1, dilation=1)
+        self.conv4 = conv2d(conv_dim*4, conv_dim*8)
+        self.conv5 = conv2d(conv_dim*8, conv_dim*8)
+    
+    def forward(self, images):
+        # |images| = (batch, 8, img, img)
+        # print(images.shape)
+        # images = images.unsqueeze(dim=1)
+        # |images| = (batch, 1, 128, 128)
+        # print(images.shape)
+        e1 = self.conv1(images)
+        # |e1| = (batch, conv_dim, 64, 64)
+        # print(e1.shape)
+        e2 = self.conv2(e1)
+        # |e2| = (batch, conv_dim*2, 16, 16)
+        # print(e2.shape)
+        e3 = self.conv3(e2)
+        # |e3| = (batch, conv_dim*4, 4, 4)
+        # print(e3.shape)
+        e4 = self.conv4(e3)
+        # |e4| = (batch, conv_dim*8, 2, 2)
+        # print(e4.shape)
+        encoded_source = self.conv5(e4)
+        # |encoded_source| = (batch, conv_dim*8, 1, 1)
+        # print(encoded_source.shape)
+        
+        return encoded_source
+    
+class Decoder_category(nn.Module):
+    
+    def __init__(self, img_dim=8, embedded_dim=640, conv_dim=64):
+        super(Decoder_category, self).__init__()
+        self.deconv1 = deconv2d(conv_dim*8, conv_dim*8, k_size=4, dilation=2, stride=2)
+        self.deconv2 = deconv2d(conv_dim*8, conv_dim*4, k_size=4, dilation=2, stride=2)
+        self.deconv3 = deconv2d(conv_dim*4, conv_dim*2, k_size=6, dilation=2, stride=4)
+        self.deconv4 = deconv2d(conv_dim*2, conv_dim*1, k_size=6, dilation=2, stride=4)
+        self.deconv5 = deconv2d(conv_dim*1, img_dim, k_size=4, dilation=2, stride=2, bn=False)
+    
+    def forward(self, embedded):
+        # |embedded| = (batch, conv_dim*8, 1, 1)
+        d1 = self.deconv1(embedded)
+        # |d1| = (batch, conv_dim*8, 2, 2)
+        # print( 1.shape)
+        d2 = self.deconv2(d1)
+        # |d2| = (batch, conv_dim*4, 4, 4)
+        # print(d2.s hape)
+        d3 = self.deconv3(d2)
+        # |d3| = (batch, conv_dim*2, 16, 16)
+        # print(d3. shape)
+        d4 = self.deconv4(d3)
+        # |d4| = (batch, conv_dim*1, 64, 64)
+        # print(d4 .shape)
+        d5 = self.deconv5(d4)        
+        # |d5| = (batch, 1, 128, 128)
+        # print(d5. shape)
+        fake_target = d5
+        # |fake_target| = (batch_size, 8, img, img)
+        # fake_target = fake_target.squeeze(dim=1)
+        # |fake_target| = (batch_size, img, img)
+        
+        return fake_target
+    
+    
+class Encoder_conv_variational(nn.Module):
+    def __init__(self, img_dim=1, conv_dim=128):
+        super(Encoder_conv_variational, self).__init__()
+        
+        self.conv1 = conv2d(img_dim+1, conv_dim, k_size=5, stride=2, pad=2, dilation=2, lrelu=False, bn=False)
+        self.conv2 = conv2d(conv_dim, conv_dim*2, k_size=5, stride=4, pad=2, dilation=2)
+        self.conv3 = conv2d(conv_dim*2, conv_dim*4, k_size=4, stride=4, pad=1, dilation=1)
+        self.conv4 = conv2d(conv_dim*4, conv_dim*8)
+        self.conv5 = conv2d(conv_dim*8, conv_dim*8)
+        self.fc2mu = nn.Linear(conv_dim*8, conv_dim*4)
+        self.fc2logvar = nn.Linear(conv_dim*8, conv_dim*4)
+    
+    def forward(self, images):
+        # |images| = (batch, 2, img, img)
+        # print(images.shape)
+        # images = images.unsqueeze(dim=1)
+        # |images| = (batch, 2, 128, 128)
+        # print(images.shape)
+        e1 = self.conv1(images)
+        # |e1| = (batch, conv_dim, 64, 64)
+        # print(e1.shape)
+        e2 = self.conv2(e1)
+        # |e2| = (batch, conv_dim*2, 16, 16)
+        # print(e2.shape)
+        e3 = self.conv3(e2)
+        # |e3| = (batch, conv_dim*4, 4, 4)
+        # print(e3.shape)
+        e4 = self.conv4(e3)
+        # |e4| = (batch, conv_dim*8, 2, 2)
+        # print(e4.shape)
+        e5 = F.leaky_relu(self.conv5(e4), 0.2)
+        # |e5| = (batch, conv_dim*8, 1, 1)
+        # print(encoded_source.shape)
+        e5 = e5.view(e5.shape[0], -1)
+        # |e5| = (batch, conv_dim*8)
+        mu, logvar = self.fc2mu(e5), self.fc2logvar(e5)
+        # |mu|, |logvar| = (batch, conv_dim*4)
+        z = self._reparameterize(mu, logvar)
+        # |z| = (batch, conv_dim*4)
+        
+        return z, mu, logvar
+    
+    def _reparameterize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        esp = torch.randn(*mu.size())
+        
+        z = mu + std * esp
+        
+        return z
+    
+class Decoder_conv_variational(nn.Module):
+    
+    def __init__(self, img_dim=1, embedded_dim=640, conv_dim=128):
+        super(Decoder_conv_variational, self).__init__()
+        
+        self.fc2conv = nn.Linear(conv_dim*4 + 128 + 128, conv_dim*8)
+        self.deconv1 = deconv2d(conv_dim*8, conv_dim*8, k_size=4, dilation=2, stride=2)
+        self.deconv2 = deconv2d(conv_dim*8, conv_dim*4, k_size=4, dilation=2, stride=2)
+        self.deconv3 = deconv2d(conv_dim*4, conv_dim*2, k_size=6, dilation=2, stride=4)
+        self.deconv4 = deconv2d(conv_dim*2, conv_dim*1, k_size=6, dilation=2, stride=4)
+        self.deconv5 = deconv2d(conv_dim*1, img_dim, k_size=4, dilation=2, stride=2, bn=False)
+    
+    def forward(self, embedded):
+        # |embedded| = (batch, conv_dim*4 + 128 + 128)
+        embedded = (F.leaky_relu(self.fc2conv(embedded), 0.2)).unsqueeze(dim=2).unsqueeze(dim=3)
+        # |embedded| = (batch, conv_dim*8, 1, 1)
+        d1 = self.deconv1(embedded)
+        # |d1| = (batch, conv_dim*8, 2, 2)
+        # print( 1.shape)
+        d2 = self.deconv2(d1)
+        # |d2| = (batch, conv_dim*4, 4, 4)
+        # print(d2.s hape)
+        d3 = self.deconv3(d2)
+        # |d3| = (batch, conv_dim*2, 16, 16)
+        # print(d3. shape)
+        d4 = self.deconv4(d3)
+        # |d4| = (batch, conv_dim*1, 64, 64)
+        # print(d4 .shape)
+        d5 = self.deconv5(d4)        
+        # |d5| = (batch, 1, 128, 128)
+        # print(d5. shape)
+        fake_target = d5
+        # |fake_target| = (batch_size, 1, img, img)
+        fake_target = fake_target.squeeze(dim=1)
+        # |fake_target| = (batch_size, img, img)
+        
+        return fake_target

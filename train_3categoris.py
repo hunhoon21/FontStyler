@@ -1,5 +1,5 @@
 from src.models.model import AE_base
-from src.data.common.dataset import NewFontDataset, PickledImageProvider
+from src.data.common.dataset import FontDataset, PickledImageProvider
 
 import torch
 from torch.nn import functional as F
@@ -21,16 +21,16 @@ if __name__ == '__main__':
     Configuration: 
     TODO - parse.args 활용
     '''
-    batch_size = 8
+    batch_size = 32
     validation_split = .15
     test_split = .05
     shuffle_dataset = True
     random_seed = 42
     
-    lr = 0.00003
+    lr = 0.0002
     
     log_interval = 10
-    epochs = 200
+    epochs = 30
     
     device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
     
@@ -41,9 +41,9 @@ if __name__ == '__main__':
     
     # get Dataset
     data_dir = 'src/data/dataset/allfonts/'
-    train_set = NewFontDataset(PickledImageProvider(data_dir+'train.obj'))
-    valid_set = NewFontDataset(PickledImageProvider(data_dir+'val.obj'))
-    test_set = NewFontDataset(PickledImageProvider(data_dir+'test.obj'))
+    train_set = FontDataset(PickledImageProvider(data_dir+'train.obj'))
+    valid_set = FontDataset(PickledImageProvider(data_dir+'val.obj'))
+    test_set = FontDataset(PickledImageProvider(data_dir+'test.obj'))
     
     # get idx samplers
     train_set_size = len(train_set)
@@ -182,21 +182,26 @@ if __name__ == '__main__':
         plt.plot(list(range(1, train_epoch+1)), train_history, label='train_history')
         plt.plot(list(range(1, valid_epoch+1)), valid_history, label='valid_history')
         plt.legend()
-        plt.savefig('history_epoch_{}.png'.format(train_epoch))
+        plt.savefig('history_epoch_{}_3cat.png'.format(train_epoch))
         plt.close()
         
     @trainer.on(Events.COMPLETED)
     def plot_font_results(engine):
         evaluator.run(test_loader)
         real_font, fake_font = evaluator.state.output
-        plt.figure(figsize=(50, 100))
-        for i, (real, fake) in enumerate(zip(real_font, fake_font)):
-            plt.subplot(43, 22, 2*i+1)
+        plt.figure(figsize=(50, 250))
+        for i, (real, fake) in enumerate(zip(real_font[:131*24], fake_font[:131*24])):
+            plt.subplot(131, 24, 2*i+1)
             plt.imshow(real.cpu().detach().numpy())
-            plt.subplot(43, 22, 2*i+2)
+            plt.subplot(131, 24, 2*i+2)
             plt.imshow(fake.cpu().detach().numpy())
-        plt.savefig('real_fake_fonts_{}'.format(engine.state.epoch))
+        plt.savefig('real_fake_fonts_{}_3cat.png'.format(engine.state.epoch))
         plt.close()
+    
+    model_path = 'AE_base_lr_{}_epochs_{}.pth'.format(lr, epochs)
+    @trainer.on(Events.COMPLETED)
+    def save_model(engine):
+        torch.save(model.state_dict(), model_path)
         
         
     trainer.run(train_loader, max_epochs=epochs)
