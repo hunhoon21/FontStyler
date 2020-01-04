@@ -3,7 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 from .layers import Encoder_base, Decoder_base
 from .layers import Encoder_category, Decoder_category
-from .layers import Encoder_conv, Decoder_conv
+from .layers import Encoder_conv, Decoder_conv, FC_conv_en, FC_conv_de
 class AE_base(nn.Module):
     def __init__(self, 
                  category_size=5, 
@@ -55,6 +55,34 @@ class AE_conv(nn.Module):
     def forward(self, x):
         z = self.Encoder(x)
         x_hat = self.Decoder(z)
+        
+        return x_hat, z
+
+class CA_conv(nn.Module):
+    def __init__(self, img_dim=8, conv_dim=64):
+        super(CA_conv, self).__init__()
+        self.Encoder = Encoder_category(img_dim=img_dim, conv_dim=conv_dim)
+        self.Decoder = Decoder_category(img_dim=img_dim, embedded_dim=conv_dim*8, conv_dim=conv_dim)
+    
+    def forward(self, x):
+        z = self.Encoder(x)
+        x_hat = self.Decoder(z)
+        
+        return x_hat, z
+        
+class AE_conv2(nn.Module):
+    def __init__(self, img_dim=1, conv_dim=64):
+        super(AE_conv2, self).__init__()
+        self.Encoder = Encoder_conv(img_dim=img_dim, conv_dim=conv_dim)
+        self.FC_en = FC_conv_en(conv_dim*8)
+        self.FC_de = FC_conv_de(conv_dim*8)
+        self.Decoder = Decoder_conv(img_dim=img_dim, embedded_dim=conv_dim*8, conv_dim=conv_dim)
+    
+    def forward(self, x):
+        z_en = self.Encoder(x)
+        z = self.FC_en(z_en)
+        z_de = self.FC_de(z)       
+        x_hat = self.Decoder(z_de)
         
         return x_hat, z
 
