@@ -31,7 +31,7 @@ if __name__ == '__main__':
     lr = 0.003
     
     log_interval = 10
-    epochs = 2
+    epochs = 100
     
     device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
     
@@ -193,10 +193,15 @@ if __name__ == '__main__':
     @trainer.on(Events.COMPLETED)
     def plot_latent_vectors(engine):
         evaluator.run(valid_loader)
-        _, _, latent_vectors = evaluator.state.output
+        real, fake, latent_vectors = evaluator.state.output
         print(latent_vectors.shape)
         # plt.figure()
+        real = real.cpu().detach().numpy()
+        fake = fake.cpu().detach().numpy()
         latent_vectors = latent_vectors.cpu().detach().numpy()
+        data = {'real': real,
+                'fake': fake,
+                'latent': latent_vectors}
         # for i in range(len(latent_vectors)):
         #     plt.plot(latent_vectors[i, 0], latent_vectors[i, 1], marker='o')
         # plt.plot(latent_vectors[:, 0], latent_vectors[:, 1], marker='.')
@@ -204,5 +209,5 @@ if __name__ == '__main__':
         # plt.close()
         global latent_path, epochs, conv_dim
         with open(latent_path.format(epochs, conv_dim), 'wb') as f:
-            pickle.dump(latent_vectors, f)
+            pickle.dump(data, f)
     trainer.run(train_loader, max_epochs=epochs)
