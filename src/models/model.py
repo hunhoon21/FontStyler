@@ -4,6 +4,7 @@ from torch.nn import functional as F
 from .layers import Encoder_base, Decoder_base
 from .layers import Encoder_category, Decoder_category
 from .layers import Encoder_conv, Decoder_conv, FC_conv_en, FC_conv_de
+from .layers import Encoder_conv_variational, Decoder_conv_variational
 class AE_base(nn.Module):
     def __init__(self, 
                  category_size=5, 
@@ -109,3 +110,39 @@ class AE_category(nn.Module):
         x_hat = x_hat.view(origin_shape)
         
         return x_hat, z_latent
+    
+    
+    
+class Convolutional_VAE(nn.Module):
+    def __init__(self, img_dim=1, conv_dim=128, category_dim=128, letter_dim=128):
+        super(Convolutional_VAE, self).__init__()
+        self.Encoder = Encoder_conv_variational(img_dim=img_dim, 
+                                                conv_dim=conv_dim)
+        self.Decoder = Decoder_conv_variational(img_dim=img_dim, 
+                                                embedded_dim=conv_dim*4+category_dim+letter_dim,
+                                                conv_dim=conv_dim)
+        
+    def forward(self, x, category_vector, letter_vector):
+        # |x| = (batch, 128, 128)
+        # |category_vector|, |letter_vector| = (batch, 128)
+        x = x.unsqueeze(dim=1)
+        category = category_vector.unsqueeze(dim=1)
+        letter = letter_vector.unsqueeze(dim=1)
+        emb_vector = torch.cat([category, letter], dim=1)
+        emb_vector = emb_vector.unsqueeze(dim=1)
+        shell_vector = torch.zeros(x.shape[0], 1, 126, 128)
+        x2 = torch.cat([emb_vector, shell_vector], dim=2)
+        x = torch.cat([x, x2], dim=1)
+        # |x| = (batch, 2, 128, 128)
+        
+        z, mu, logvar = self.Encoder(x)
+        # |z|, |mu|, |logvar| = (batch, conv_dim*4)
+        z = torch.cat([z, category_vector, letter_vector], dim=1)
+        # |z| = (batch, conv_dim*4 + 128 + 128)
+    
+        x_hat = self.Decoder(z)
+        # |x_hat| = (batch, 1, 128, 128)
+        x_hat = x_hat.squeeze(dim=1)
+        
+        return x_hat, mu, logvar
+        
