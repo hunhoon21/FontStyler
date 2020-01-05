@@ -281,6 +281,57 @@ class KoreanFontDataset(torch.utils.data.Dataset):
 
 	def __len__(self):
 		return len(self.dset)
+
+class KoreanFontDataset_with_Embedding(torch.utils.data.Dataset):
+	"""
+	한글 폰트 클래스. Doc2vec의 vector_size를 명시해주세요(10, 20).
+	"""
+	def __init__(self, pickled, category_emb_path, letter_emb_path): #, vector_size=10):
+		self.path = pickled.obj_path
+		self.dset = pickled.examples
+		self.category_emb_dict = self._load_embedding(category_emb_path)
+		self.letter_emb_dict = self._load_embedding(letter_emb_path)
+		
+		# doc2vec = get_doc2vec()
+		# self.vec = doc2vec[0] if vector_size == 10 else doc2vec[1]
+		
+
+	def __getitem__(self, idx):
+		img_tuple = self.dset[idx]
+		filename, img_byte = img_tuple[0], img_tuple[1]
+
+		filename = filename[:-4]       # 확장자 제거
+		filename = filename.split('_') # [폰트 인덱스, 글자 인덱스]
+		
+		# 파생변수 생성
+		font_idx = int(filename[0])
+		info = {
+			'font_index'  : font_idx,
+			# 'font_doc2vec': np.array(self.vec.loc[self.vec.index[font_idx]]),
+			'word_index'  : int(filename[1])
+		}
+		
+		# bytes 타입을 numpy array로 변경 후 normalize
+		img_arr = np.array(Image.open(io.BytesIO(img_byte)))
+		img_arr = normalize_image(img_arr)
+		cropped_image, _ = tight_crop_image(img_arr, verbose=False)
+		centered_image = add_padding(cropped_image, verbose=False)
+		category_vector = self.category_emb_dict[int(filename[0])]
+		letter_vector = self.letter_emb_dict[int(filename[1])]
+  
+		centered_image = torch.from_numpy(centered_image)
+		category_vector = torch.from_numpy(category_vector)
+		letter_vector  = torch.from_numpy(letter_vector)
+  
+		return info, centered_image, category_vector, letter_vector
+     
+	def __len__(self):
+		return len(self.dset)
+
+	def _load_embedding(self, pkl_path):
+		with open(pkl_path, 'rb') as f:
+			emb_dict = pickle.load(f)
+		return emb_dict
 	
 class CategoryDataset(torch.utils.data.Dataset):
 	def __init__(self, pickled):
@@ -325,4 +376,4 @@ class CategoryDataset(torch.utils.data.Dataset):
 # 		return info, centered_image
 
 	def __len__(self):
-		return int(len(self.dset)/8)
+		return len(self.dset/8)

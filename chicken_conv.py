@@ -1,4 +1,4 @@
-from src.models.model import AE_category
+from src.models.model import AE_conv
 from src.data.common.dataset import KoreanFontDataset, PickledImageProvider
 
 import torch
@@ -14,6 +14,7 @@ import numpy as np
 from tqdm import tqdm
 
 from matplotlib import pyplot as plt
+import pickle
 
 if __name__ == '__main__':
     
@@ -30,10 +31,11 @@ if __name__ == '__main__':
     lr = 0.003
     
     log_interval = 10
-    epochs = 50
+    epochs = 100
     
     device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
     
+    conv_dim = 32
     
     '''
     Dataset Loaders
@@ -64,8 +66,7 @@ if __name__ == '__main__':
     '''
     Modeling
     '''
-    model = AE_category(font_size=128*128, 
-                        z_size=128).to(device)
+    model = AE_conv(img_dim=1, conv_dim=conv_dim).to(device)
     
     '''
     Optimizer
@@ -81,7 +82,7 @@ if __name__ == '__main__':
     def train_process(engine, batch):
         model.float().to(device).train()
         optimizer.zero_grad()
-        file_name, font  = batch
+        _, font  = batch
         
         font = font.float().to(device)
         
@@ -98,7 +99,7 @@ if __name__ == '__main__':
     def evaluate_process(engine, batch):
         model.float().to(device).eval()
         with torch.no_grad():
-            file_name, font = batch
+            _, font = batch
             
             font = font.float().to(device)
             
@@ -156,42 +157,57 @@ if __name__ == '__main__':
     #     )
     #     global valid_history
     #     valid_history += [metrics['mse']]
-        
-    # @trainer.on(Events.COMPLETED)
-    # def plot_history_results(engine):
-    #     train_epoch = len(train_history)
-    #     valid_epoch = len(valid_history)
-    #     plt.plot(list(range(1, train_epoch+1)), train_history, label='train_history')
-    #     plt.plot(list(range(1, valid_epoch+1)), valid_history, label='valid_history')
-    #     plt.legend()
-    #     plt.savefig('history_epoch_{}.png'.format(train_epoch))
-    #     plt.close()
-        
+
+    history_path = 'history_conv_epoch_{}_dim_{}.png'        
+    @trainer.on(Events.COMPLETED)
+    def plot_history_results(engine):
+        train_epoch = len(train_history)
+        # valid_epoch = len(valid_history)
+        plt.figure()
+        plt.plot(list(range(1, train_epoch+1)), train_history, label='train_history')
+        # plt.plot(list(range(1, valid_epoch+1)), valid_history, label='valid_history')
+        plt.legend()
+        global history_path, epochs, conv_dim
+        print(history_path.format(epochs, conv_dim))
+        plt.savefig(history_path.format(epochs, conv_dim))
+        plt.close()
+    
+    result_path = 'real_fake_conv_epoch_{}_dim_{}.png'
     @trainer.on(Events.COMPLETED)
     def plot_font_results(engine):
         evaluator.run(valid_loader)
-        real_font, fake_font, latent_vectors = evaluator.state.output
-        print(real_font.shape)
-        print(fake_font)
+        real_font, fake_font, _ = evaluator.state.output
+        # print(real_font.shape)
+        # print(fake_font)
         plt.figure(figsize=(6, 100))
         for i, (real, fake) in enumerate(zip(real_font, fake_font)):
             plt.subplot(107, 2, 2*i+1)
             plt.imshow(real.cpu().detach().numpy())
             plt.subplot(107, 2, 2*i+2)
             plt.imshow(fake.cpu().detach().numpy())
-        # plt.savefig('real_fake_fonts_{}_for_category_5layers.png'.format(engine.state.epoch))
+        global result_path, epochs, conv_dim
+        plt.savefig(result_path.format(epochs, conv_dim))
         plt.close()
     
+    latent_path = 'latent_conv_epoch_{}_dim_{}.pkl'
     @trainer.on(Events.COMPLETED)
     def plot_latent_vectors(engine):
         evaluator.run(valid_loader)
-        _, _, latent_vectors = evaluator.state.output
+        real, fake, latent_vectors = evaluator.state.output
         print(latent_vectors.shape)
-        plt.figure()
+        # plt.figure()
+        real = real.cpu().detach().numpy()
+        fake = fake.cpu().detach().numpy()
         latent_vectors = latent_vectors.cpu().detach().numpy()
-        for i in range(len(latent_vectors)):
-            plt.plot(latent_vectors[i, 0], latent_vectors[i, 1], marker='o')
+        data = {'real': real,
+                'fake': fake,
+                'latent': latent_vectors}
+        # for i in range(len(latent_vectors)):
+        #     plt.plot(latent_vectors[i, 0], latent_vectors[i, 1], marker='o')
         # plt.plot(latent_vectors[:, 0], latent_vectors[:, 1], marker='.')
         # plt.savefig('latent_vectors_for_category_layers.png')
-        plt.close()
+        # plt.close()
+        global latent_path, epochs, conv_dim
+        with open(latent_path.format(epochs, conv_dim), 'wb') as f:
+            pickle.dump(data, f)
     trainer.run(train_loader, max_epochs=epochs)
