@@ -1,4 +1,4 @@
-from src.models.model import Convolutional_VAE
+from src.models.model import Convolutional_AE_base
 from src.data.common.dataset import KoreanFontDataset_with_Embedding, PickledImageProvider
 from src.models.loss import kld_loss
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     epochs = 100
     
     print(torch.cuda.is_available())
-    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print(device)
     conv_dim = 32
     
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     '''
     Modeling
     '''
-    model = Convolutional_VAE(img_dim=1, conv_dim=conv_dim).to(device)
+    model = Convolutional_AE_base(img_dim=1, conv_dim=conv_dim).to(device)
     
     '''
     Optimizer
@@ -108,55 +108,47 @@ if __name__ == '__main__':
         model.float().to(device).train()
         optimizer.zero_grad()
         
-        _, font, category, letter  = batch
+        _, font, _, _  = batch
         
         font = font.float().to(device)
-        category = category.float().to(device)
-        letter = letter.float().to(device)
         
-        font_hat, mu, logvar = model(font, category, letter, device)
+        font_hat, _ = model(font)
         
         mse = F.mse_loss(font_hat, font)
-        kld = kld_loss(mu, logvar)
         loss = mse
         
         loss.backward()
         
         optimizer.step()
         
-        return loss.item(), mse.item(), kld.item()
+        return mse.item()
     
     # Evaluating 시 process_function
     def evaluate_process(engine, batch):
         model.float().to(device).eval()
         with torch.no_grad():
-            _, font, category, letter = batch
+            _, font, _, _ = batch
             
             font = font.float().to(device)
-            category = category.float().to(device)
-            letter = letter.float().to(device)
             
-            font_hat, mu, logvar = model(font, category, letter, device)
+            font_hat, z = model(font)
             
-            return font, font_hat, mu, logvar
+            return font, font_hat, z
         
         
     trainer = Engine(train_process)
     evaluator = Engine(evaluate_process)
     
     
-    RunningAverage(output_transform=lambda x: x[0]).attach(trainer, 'loss')
-    RunningAverage(output_transform=lambda x: x[1]).attach(trainer, 'mse')
-    RunningAverage(output_transform=lambda x: x[2]).attach(trainer, 'kld')
+    RunningAverage(output_transform=lambda x: x).attach(trainer, 'loss')
     
     Loss(F.mse_loss, output_transform=lambda x: [x[1], x[0]]).attach(evaluator, 'mse')
-    Loss(kld_loss, output_transform=lambda x: [x[2], x[3]]).attach(evaluator, 'kld')
     
     
-    desc = "ITERATION - loss: {:.5f} mse: {:.5f} kld: {:.5f}"
+    desc = "ITERATION - loss: {:.5f}"
     pbar = tqdm(
         initial=0, leave=False, total=len(train_loader),
-        desc=desc.format(0, 0, 0)
+        desc=desc.format(0)
     )
 
     train_history = []
@@ -168,7 +160,7 @@ if __name__ == '__main__':
         
         if iter % log_interval == 0:
             outputs = engine.state.output
-            pbar.desc = desc.format(outputs[0], outputs[1], outputs[2])
+            pbar.desc = desc.format(outputs)
             pbar.update(log_interval)
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_training_results(engine):
@@ -176,10 +168,9 @@ if __name__ == '__main__':
         evaluator.run(train_loader)
         metrics = evaluator.state.metrics
         mse_loss = metrics['mse']
-        kld_loss = metrics['kld']
         tqdm.write(
-            "Training Result - Epoch: {} MSE: {:.4f} KLD: {:.4f}"
-            .format(engine.state.epoch, mse_loss, kld_loss)
+            "Training Result - Epoch: {} MSE: {:.4f}"
+            .format(engine.state.epoch, mse_loss)
         )
         global train_history
         train_history += [metrics['mse']]
@@ -188,15 +179,14 @@ if __name__ == '__main__':
         evaluator.run(valid_loader)
         metrics = evaluator.state.metrics
         mse_loss = metrics['mse']
-        kld_loss = metrics['kld']
         tqdm.write(
-            "Validation Results - Epoch: {} MSE: {:.4f} KLD: {:.4f}"
-            .format(engine.state.epoch, mse_loss, kld_loss)
+            "Validation Results - Epoch: {} MSE: {:.4f}"
+            .format(engine.state.epoch, mse_loss)
         )
         global valid_history
         valid_history += [metrics['mse']]
 
-    history_path = 'history_conVAE_mse_epoch_{}_dim_{}.png'
+    history_path = 'history_convAE_Base_cat_epoch_{}_dim_{}.png'
     @trainer.on(Events.COMPLETED)
     def plot_history_results(engine):
         train_epoch = len(train_history)
@@ -210,11 +200,11 @@ if __name__ == '__main__':
         plt.savefig(history_path.format(epochs, conv_dim))
         plt.close()
     
-    result_path = 'real_fake_conVAE_mse_epoch_{}_dim_{}.png'
+    result_path = 'real_fake_convAE_Base_cat_epoch_{}_dim_{}.png'
     @trainer.on(Events.COMPLETED)
     def plot_font_results(engine):
         evaluator.run(valid_loader)
-        real_font, fake_font, _, _ = evaluator.state.output
+        real_font, fake_font, _ = evaluator.state.output
         # print(real_font.shape)
         # print(fake_font)
         real_font, fake_font = real_font[:200], fake_font[:200]
@@ -231,21 +221,19 @@ if __name__ == '__main__':
         plt.savefig(result_path.format(epochs, conv_dim))
         plt.close()
     
-    latent_path = 'latent_conVAE_mse_epoch_{}_dim_{}.pkl'
+    latent_path = 'latent_convAE_Base_cat_epoch_{}_dim_{}.pkl'
     @trainer.on(Events.COMPLETED)
     def plot_latent_vectors(engine):
         evaluator.run(test_loader)
-        real, fake, mu, logvar = evaluator.state.output
-        # print(latent_vectors.shape)
+        real, fake, latent_vectors = evaluator.state.output
+        print(latent_vectors.shape)
         # plt.figure()
         real = real.cpu().detach().numpy()
         fake = fake.cpu().detach().numpy()
-        mu = mu.cpu().detach().numpy()
-        logvar = logvar.cpu().detach().numpy()
+        latent_vectors = latent_vectors.cpu().detach().numpy()
         data = {'real': real,
                 'fake': fake,
-                'mu': mu,
-                'logvar': logvar}
+                'latent': latent_vectors}
         # for i in range(len(latent_vectors)):
         #     plt.plot(latent_vectors[i, 0], latent_vectors[i, 1], marker='o')
         # plt.plot(latent_vectors[:, 0], latent_vectors[:, 1], marker='.')
