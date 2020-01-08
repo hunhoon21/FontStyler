@@ -14,7 +14,7 @@
 src/
 └── data/
     ├── collection/
-    ├── common/
+    └── common/
         ├── __init__.py
         ├── dataset.py
         └── utils.py
