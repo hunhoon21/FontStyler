@@ -5,6 +5,7 @@ from .layers import Encoder_base, Decoder_base
 from .layers import Encoder_category, Decoder_category
 from .layers import Encoder_conv, Decoder_conv, FC_conv_en, FC_conv_de
 from .layers import Encoder_conv_variational, Decoder_conv_variational
+
 class AE_base(nn.Module):
     def __init__(self, 
                  category_size=5, 
@@ -145,4 +146,17 @@ class Convolutional_VAE(nn.Module):
         x_hat = x_hat.squeeze(dim=1)
         
         return x_hat, mu, logvar
-        
+
+
+class Tripletnet(nn.Module):
+    def __init__(self, embeddingnet):
+        super(Tripletnet, self).__init__()
+        self.embeddingnet = embeddingnet
+
+    def forward(self, x, y, z):
+        embedded_x = self.embeddingnet(x)
+        embedded_y = self.embeddingnet(y)
+        embedded_z = self.embeddingnet(z)
+        dist_a = F.pairwise_distance(embedded_x, embedded_y, 2)
+        dist_b = F.pairwise_distance(embedded_x, embedded_z, 2)
+        return dist_a, dist_b, embedded_x, embedded_y, embedded_z
