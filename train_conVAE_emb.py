@@ -23,7 +23,7 @@ if __name__ == '__main__':
     Configuration: 
     TODO - parse.args 활용
     '''
-    batch_size = 15
+    batch_size = 16
     validation_split = .1
     test_split = .05
     shuffle_dataset = True
@@ -32,10 +32,11 @@ if __name__ == '__main__':
     lr = 0.003
     
     log_interval = 10
-    epochs = 600
+    epochs = 100
     
+    print(torch.cuda.is_available())
     device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
-    
+    print(device)
     conv_dim = 32
     
     '''
@@ -44,8 +45,8 @@ if __name__ == '__main__':
     
     # get Dataset
     data_dir = 'src/data/dataset/kor/'
-    category_path = 'src/data/dataset/embedding/cat_emb_tmp.pkl'
-    letter_path = 'src/data/dataset/embedding/letter_emb_tmp.pkl'
+    category_path = 'src/data/dataset/embedding/category_emb.pkl'
+    letter_path = 'src/data/dataset/embedding/letter_emb.pkl'
     train_set = KoreanFontDataset_with_Embedding(PickledImageProvider(data_dir+'train.obj'),
                                                  category_emb_path=category_path,
                                                  letter_emb_path=letter_path
@@ -113,11 +114,11 @@ if __name__ == '__main__':
         category = category.float().to(device)
         letter = letter.float().to(device)
         
-        font_hat, mu, logvar = model(font, category, letter)
+        font_hat, mu, logvar = model(font, category, letter, device)
         
         mse = F.mse_loss(font_hat, font)
         kld = kld_loss(mu, logvar)
-        loss = mse + kld
+        loss = mse
         
         loss.backward()
         
@@ -135,7 +136,7 @@ if __name__ == '__main__':
             category = category.float().to(device)
             letter = letter.float().to(device)
             
-            font_hat, mu, logvar = model(font, category, letter)
+            font_hat, mu, logvar = model(font, category, letter, device)
             
             return font, font_hat, mu, logvar
         
@@ -195,7 +196,7 @@ if __name__ == '__main__':
         global valid_history
         valid_history += [metrics['mse']]
 
-    history_path = 'history_conv_cat_epoch_{}_dim_{}.png'
+    history_path = 'history_conVAE_mse_epoch_{}_dim_{}.png'
     @trainer.on(Events.COMPLETED)
     def plot_history_results(engine):
         train_epoch = len(train_history)
@@ -209,40 +210,42 @@ if __name__ == '__main__':
         plt.savefig(history_path.format(epochs, conv_dim))
         plt.close()
     
-    result_path = 'real_fake_conv_cat_epoch_{}_dim_{}.png'
+    result_path = 'real_fake_conVAE_mse_epoch_{}_dim_{}.png'
     @trainer.on(Events.COMPLETED)
     def plot_font_results(engine):
         evaluator.run(valid_loader)
-        real_font, fake_font, _ = evaluator.state.output
+        real_font, fake_font, _, _ = evaluator.state.output
         # print(real_font.shape)
         # print(fake_font)
+        real_font, fake_font = real_font[:200], fake_font[:200]
         n = len(real_font)
-        plt.figure(figsize=(6, 10))
+        plt.figure(figsize=(10, 30))
         for i, (real, fake) in enumerate(zip(real_font, fake_font)):
-            for j, (r, f) in enumerate(zip(real, fake)):    
-                plt.subplot(n*2, 8, 16*i+j+1)
-                plt.imshow(r.cpu().detach().numpy())
-                plt.tick_params(axis='both', labelsize=0, length = 0)
-                plt.subplot(n*2, 8, 16*i+j+9)
-                plt.imshow(f.cpu().detach().numpy())
-                plt.tick_params(axis='both', labelsize=0, length = 0)
+            plt.subplot(40, 10, 2*i+1)
+            plt.imshow(real.cpu().detach().numpy())
+            plt.tick_params(axis='both', labelsize=0, length = 0)
+            plt.subplot(40, 10, 2*i+2)
+            plt.imshow(fake.cpu().detach().numpy())
+            plt.tick_params(axis='both', labelsize=0, length = 0)
         global result_path, epochs, conv_dim
         plt.savefig(result_path.format(epochs, conv_dim))
         plt.close()
     
-    latent_path = 'latent_conv_cat_epoch_{}_dim_{}.pkl'
+    latent_path = 'latent_conVAE_mse_epoch_{}_dim_{}.pkl'
     @trainer.on(Events.COMPLETED)
     def plot_latent_vectors(engine):
         evaluator.run(test_loader)
-        real, fake, latent_vectors = evaluator.state.output
-        print(latent_vectors.shape)
+        real, fake, mu, logvar = evaluator.state.output
+        # print(latent_vectors.shape)
         # plt.figure()
         real = real.cpu().detach().numpy()
         fake = fake.cpu().detach().numpy()
-        latent_vectors = latent_vectors.cpu().detach().numpy()
+        mu = mu.cpu().detach().numpy()
+        logvar = logvar.cpu().detach().numpy()
         data = {'real': real,
                 'fake': fake,
-                'latent': latent_vectors}
+                'mu': mu,
+                'logvar': logvar}
         # for i in range(len(latent_vectors)):
         #     plt.plot(latent_vectors[i, 0], latent_vectors[i, 1], marker='o')
         # plt.plot(latent_vectors[:, 0], latent_vectors[:, 1], marker='.')
