@@ -17,6 +17,51 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 import pickle
 
+
+def get_config():
+    import argparse
+
+    p = argparse.ArgumentParser()
+
+    p.add_argument('--gpu_id', type=int, default=-1,
+                   help='GPU id to use. (default: %(default)s)')
+
+    p.add_argument('--data_fn', type=str, default='src/data/dataset/kor/',
+                   help='Dataset directory name. (default: %(default)s)')
+    p.add_argument('--category_fn', type=str,
+                   default='src/data/dataset/embedding/new_category_emb.pkl',
+                   help='Category embedding vector file name. \
+                         (default: %(default)s)')
+    p.add_argument('--letter_fn', type=str,
+                   default='src/data/dataset/embedding/new_letter_emb.pkl',
+                   help='Letter embedding vector file name. \
+                         (default: %(default)s)')
+    p.add_argument('--model_fn', type=str, default='.pth',
+                   help='Output model filename. (default: %(default)s)')
+
+    p.add_argument('--n_epochs', type=int, default=100,
+                   help='Number of epochs. (default: %(default)s)')
+    p.add_argument('--batch_size', type=int, default=32,
+                   help='Number of samples in mini-batch. (default: %(default)s)')
+    p.add_argument('--lr', type=float, default=1e-3,
+                   help='Learning rate for Adam. (default: %(default)s)')
+
+    p.add_argument('--random_seed', type=int, default=123456,
+                   help='Random seed for data split. (default: %(default)s)')
+
+    p.add_argument('--channel_size', type=int, default=1,
+                   help='Number of input channels. (default: %(default)s)')
+    p.add_argument('--conv_size', type=int, default=512,
+                   help='Number of conv channels to use. (default: %(default)s)')
+
+    p.add_argument('--verbose', type=int, default=2,
+                   help='Verbosity for training log. (default: %(default)s)')
+
+    config = p.parse_args()
+
+    return config
+
+
 if __name__ == '__main__':
     
     '''
@@ -24,16 +69,14 @@ if __name__ == '__main__':
     TODO - parse.args 활용
     '''
     batch_size = 16
-    validation_split = .1
-    test_split = .05
     shuffle_dataset = True
     random_seed = 42
-    
+   
     lr = 0.003
-    
+
     log_interval = 10
-    epochs = 10
-    
+    n_epochs = 10
+
     print(torch.cuda.is_available())
     device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
     print(device)
@@ -109,7 +152,7 @@ if __name__ == '__main__':
         model.float().to(device).train()
         optimizer.zero_grad()
         
-        _, font, category, letter  = batch
+        _, font, category, letter = batch
         
         font = font.float().to(device)
         category = category.float().to(device)
@@ -206,9 +249,9 @@ if __name__ == '__main__':
         plt.plot(list(range(1, train_epoch+1)), train_history, label='train_history')
         plt.plot(list(range(1, valid_epoch+1)), valid_history, label='valid_history')
         plt.legend()
-        global history_path, epochs, conv_dim
-        print(history_path.format(epochs, conv_dim))
-        plt.savefig(history_path.format(epochs, conv_dim))
+        global history_path, n_epochs, conv_dim
+        print(history_path.format(n_epochs, conv_dim))
+        plt.savefig(history_path.format(n_epochs, conv_dim))
         plt.close()
     
     result_path = 'real_fake_conVAE_z_epoch_{}_dim_{}_5.png'
@@ -228,15 +271,15 @@ if __name__ == '__main__':
             plt.subplot(40, 10, 2*i+2)
             plt.imshow(fake.cpu().detach().numpy())
             plt.tick_params(axis='both', labelsize=0, length = 0)
-        global result_path, epochs, conv_dim
-        plt.savefig(result_path.format(epochs, conv_dim))
+        global result_path, n_epochs, conv_dim
+        plt.savefig(result_path.format(n_epochs, conv_dim))
         plt.close()
     
     weight_path = 'weight_conVAE_z_epoch_{}_dim_{}_5.pth'
     @trainer.on(Events.COMPLETED)
     def save_weight(engine):
-        global latent_path, epochs, conv_dim
-        torch.save(model.state_dict(), weight_path.format(epochs, conv_dim))
+        global latent_path, n_epochs, conv_dim
+        torch.save(model.state_dict(), weight_path.format(n_epochs, conv_dim))
     # latent_path = 'latent_conVAE_z_epoch_{}_dim_{}.pkl'
     # @trainer.on(Events.COMPLETED)
     # def plot_latent_vectors(engine):
@@ -260,4 +303,4 @@ if __name__ == '__main__':
     #     global latent_path, epochs, conv_dim
     #     with open(latent_path.format(epochs, conv_dim), 'wb') as f:
     #         pickle.dump(data, f)
-    trainer.run(train_loader, max_epochs=epochs)
+    trainer.run(train_loader, max_epochs=n_epochs)
