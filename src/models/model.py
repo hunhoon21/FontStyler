@@ -7,6 +7,8 @@ from .layers import Encoder_conv, Decoder_conv, FC_conv_en, FC_conv_de
 from .layers import Encoder_conv_base, Decoder_conv_base
 from .layers import Encoder_conv_variational, Decoder_conv_variational
 from .layers import Encoder_conv_z, Decoder_conv_z
+from .layers import Encoder_convae_z, Decoder_convae_z
+
 class AE_base(nn.Module):
     def __init__(self, 
                  category_size=5, 
@@ -123,7 +125,7 @@ class Convolutional_VAE(nn.Module):
                                                 embedded_dim=conv_dim*4+category_dim+letter_dim,
                                                 conv_dim=conv_dim)
         
-    def forward(self, x, category_vector, letter_vector, device):
+    def forward(self, x, category_vector, letter_vector):
         # |x| = (batch, 128, 128)
         # |category_vector|, |letter_vector| = (batch, 128)
         x = x.unsqueeze(dim=1)
@@ -131,7 +133,7 @@ class Convolutional_VAE(nn.Module):
         letter = letter_vector.unsqueeze(dim=1)
         emb_vector = torch.cat([category, letter], dim=1)
         emb_vector = emb_vector.unsqueeze(dim=1)
-        shell_vector = torch.zeros(x.shape[0], 1, 126, 128).to(device)
+        shell_vector = torch.zeros(x.shape[0], 1, 126, 128).to(emb_vector.device)
         x2 = torch.cat([emb_vector, shell_vector], dim=2)
         x = torch.cat([x, x2], dim=1)
         # |x| = (batch, 2, 128, 128)
@@ -186,3 +188,26 @@ class Convolutional_AE_z(nn.Module):
         # |x_hat| = (batch, 128, 128)
         
         return x_hat, z
+    
+    
+class Convolutional_VAE_z(nn.Module):
+    def __init__(self, img_dim=1, conv_dim=128, category_dim=128, letter_dim=128):
+        super(Convolutional_VAE_z, self).__init__()
+        self.Encoder = Encoder_convae_z(img_dim=img_dim, 
+                                                conv_dim=conv_dim)
+        self.Decoder = Decoder_convae_z(img_dim=img_dim, 
+                                                embedded_dim=conv_dim+category_dim+letter_dim,
+                                                conv_dim=conv_dim)
+        
+    def forward(self, x, category_vector, letter_vector):
+        # |x| = (batch, 128, 128)
+        # |category_vector|, |letter_vector| = (batch, 128)
+        z, mu, logvar = self.Encoder(x)
+        # |z| = (batch, conv_dim)
+        z = torch.cat([z, category_vector, letter_vector], dim=1)
+        # |z| = (batch, conv_dim + 128 + 128)
+    
+        x_hat = self.Decoder(z)
+        # |x_hat| = (batch, 128, 128)
+        
+        return x_hat, mu, logvar
