@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import absolute_import
-import pickle as pickle
-import numpy as np
-import pandas as pd
-import random
-import os
-import os.path
+from __future__ import absolute_import, print_function
+
 import glob
 import io
+import os
+import os.path
+import pickle as pickle
+import random
 
+import numpy as np
+
+import pandas as pd
 import torch
 import torch.utils.data
 import torchvision.transforms as transforms
+from PIL import Image
 from torchvision.utils import save_image
 
-from PIL import Image
-from .utils import pad_seq, bytes_to_file, \
-	read_split_image, shift_and_resize_image, normalize_image, \
-	tight_crop_image, add_padding
+from .utils import (add_padding, bytes_to_file, normalize_image, pad_seq,
+                    read_split_image, shift_and_resize_image, tight_crop_image)
+
 
 class PickledImageProvider(object):
 	def __init__(self, obj_path):
