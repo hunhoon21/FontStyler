@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
-import os
 import glob
+import os
+
+import numpy as np
+import scipy.misc as misc
 
 import imageio
-import scipy.misc as misc
-import numpy as np
+
 try:
     from StringIO import StringIO ## for Python 2
 except ImportError:
