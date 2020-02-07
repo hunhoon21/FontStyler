@@ -27,6 +27,13 @@ CROP - RESIZE - PADDING 방식으로 전처리
 
 
 ## # Model
+### Model using Doc2Vec
+!['doc2vec'](src/readme_img/model_doc2vec.png)
+
+### Model using Triplet Network
+!['triplet'](src/readme_img/model_triplet.png)
+
+## # Result
 
 
 ## # Code
