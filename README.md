@@ -38,8 +38,8 @@ CROP - RESIZE - PADDING 방식으로 전처리
 ### Model using Triplet Network
 !['triplet'](src/readme_img/model_triplet.png)
 
-## # Result
-
+## # Speech Material
+[제 9회 투빅스 컨퍼런스 발표자료 (2010.01.11)](https://drive.google.com/open?id=154ZOYYJRNPFOocdWWV5shlEuUWaAGyQB)
 
 ## # Code
 ```
