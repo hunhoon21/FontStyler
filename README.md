@@ -3,7 +3,12 @@
 (~~업데이트 중입니다~~)
 
 ## # Introduction
+사용자의 손글씨를 직접 입력하여 폰트를 만들어내는 것이 아닌, **특정한 느낌**의 폰트 이미지를 바로 생성하여 번거로움을 없애고자 하였음.
 
+
+따라서 적절한 **임베딩 벡터**를 만드는 것에 신경을 많이 쓰게 되었음.
+
+- 입력 이미지에 대한 latent vector의 영향력을 최소화하는 동시에, "글자 임베딩 벡터", "카테고리 임베딩 벡터" 등 임베딩 벡터의 영향력을 높여 **입력 이미지에 대한 정보가 거의 없는 상황에서 임베딩 벡터만으로도 글자를 생성**할 수 있는지 실험하였음.
 
 ## # Data
 - [네이버 한글날 손글씨 공모전](https://clova.ai/handwriting/list.html)에서 공개된 109개의 폰트 중 107개
@@ -27,6 +32,13 @@ CROP - RESIZE - PADDING 방식으로 전처리
 
 
 ## # Model
+### Model using Doc2Vec
+!['doc2vec'](src/readme_img/model_doc2vec.png)
+
+### Model using Triplet Network
+!['triplet'](src/readme_img/model_triplet.png)
+
+## # Result
 
 
 ## # Code
